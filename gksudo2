@@ -1,0 +1,174 @@
+#! /bin/bash
+####################################################################################
+# GKSUDO2 (drop-in replacement for gksudo, gksu) without pkexec,
+#		for X11 or Wayland. GPLv3 license, by William Rueger (furryfixer) 
+# Requires: Zenity, sudo, and elogind or systemd dependencies.
+# Also requires a helper script, GKSUDO-SU, for actions with elevated privileges.
+#
+# The invoking user MUST be a SUDOER, either individually or as part of a 
+# group (such as wheel or sudo) with sudo privileges. This script is designed
+# to replace deprecated "gksu" and gksudo". It is VULNERABLE and NOT SECURE by
+# modern standards. sudo is used for authorization, including the allowing 
+# of switching to non-root users.
+#
+# SIMPLIFIED GKSUDO OPTIONS.  Only "-u|--user" option accepted. If any other
+# command-line options designed for the original gksudo are encountered
+# (preceded by "-" or "--") they WILL BE IGNORED. "-" or "--" options are
+# stripped until a non-dash field encountered, at which all remaining fields,
+# including trailing "-" options, are passed on to sudo as a command to execute.
+# A temporary helper script, "/tmp/gk/gksudo-env" is generated each time gksudo2
+# is invoked, which sets the environment for sudo. Sudo Credential Settings
+# (cached, or NOPASSWD) are respected by default, however the user can add to,
+# or modify, two strings below for desired commands/apps, either to prevent them
+# from running at all with gksudo (NEVER_AUTH_LIST), or to force them to prompt
+# for a password every time that command is encountered (FORCE_PASSWD_LIST).
+# Full pathnames need not be included, but whitespace is required between entries.
+# Polkit Auth_admin rules are bypassed in favor of sudo authorization.
+# Updated 10/2022. 
+##=================================================================================##
+
+FORCE_PASSWD_LIST=" "
+
+NEVER_AUTH_LIST="kill pkill su rm chmod chown"
+
+##=================================================================================##
+
+err_exit1 () {
+	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --no-wrap --no-markup 2>/dev/null); then
+		sed 's^\\n^^g' <<< "$*"  # print error without zenity \n format
+	fi
+	exit 1
+}
+
+sudo_znty () {
+	if ! sudo -A "$@" > /dev/null 2>/tmp/gk/sudo-error; then
+		if grep "3 incorrect password attempts" /tmp/gk/sudo-error; then
+			err_exit1 "STOP!  No valid password for ${USER} 
+ after multiple attempts"
+		elif grep "not in the sudoers file" /tmp/gk/sudo-error; then
+			err_exit1 "STOP! User \"${USER}\" has no sudo privileges, 
+ which gksudo2 requires."
+		fi
+	fi
+}
+is_cmd_in_list () {
+	while [ -n "$1" ]
+	do
+		list_minus_path=${1##*/}
+		[[ $cmd_minus_path  = "${list_minus_path}" ]] &&  return 0
+		shift
+	done
+	return 1
+}
+
+force_password () {  # prompt for password only if sudo does not. su is used to validate 
+	if sudo -nv  >/dev/null 2>&1; then
+		su -c : $USER <<< "$($SUDO_ASKPASS)" >/dev/null 2>&1 || err_exit1 "Password Not Recognized"
+	fi
+}
+
+[[ ! -d /tmp/gk ]] && (mkdir -m0777 /tmp/gk)  # avoid sticky bit issues if su before running
+if [[ ! -e /bin/zenity ]]; then
+	echo "STOP! Zenity is not found, and required to run gksudo2"
+	exit 1
+fi
+if [[ ! -f /tmp/gk/sudo-error ]]; then
+	touch /tmp/gk/sudo-error 
+	chmod 0666 /tmp/gk/sudo-error
+fi
+USER=$(whoami)   # in case odd "su" invocation to root. Force to be the same.
+usr_home=$(eval echo "~${USER}")
+current_dir=`pwd` 
+[[ -f /tmp/gk/zenity-sudo-passwd ]] && rm /tmp/gk/zenity-sudo-passwd
+echo "#!/bin/bash
+zenity --entry --title=\"gksudo2\" --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd
+chmod 0777 /tmp/gk/zenity-sudo-passwd
+export SUDO_ASKPASS="/tmp/gk/zenity-sudo-passwd"
+as_user="root"
+while :   # Deal with legacy gksudo options, all but --user|-u are stripped/ignored
+do
+	case "$1" in
+	-u | --user)    # Pass the following username to sudo
+		as_user=$2
+		shift 2
+		;;
+	-m | --message | -D | --description)   # Only other gksudo options which used 2nd following field?
+		shift 2
+		;;
+	
+	-* | --*)    # All other options only 1 shift needed to erase
+		shift
+		;; 
+	 *)          # Remaining commandline conditionally passed to sudo
+		break
+		;;
+	esac
+done
+
+[[ $# -lt 1 ]]  &&  err_exit1 "STOP! Improper syntax or missing arguments"
+if ! (id "$as_user" >/dev/null 2>&1); then
+	err_exit1 "STOP! \" "$as_user"\" is not a known username 
+ on the local system"
+fi
+#   Our new $@ should be the command to pass to sudo, but first we need to 
+#   compare with commands in $NEVER_AUTH_LIST above. We must strip full path
+#   if present only for the purpose of this comparison.  		
+cmd_minus_path=${1##*/}       # Strips  /usr/bin/.../  prefixes
+hash "$1" 2>/dev/null || err_exit1 "STOP! Command ${1} not found"
+is_cmd_in_list ${NEVER_AUTH_LIST} && err_exit1 "STOP! gksudo2 execution of ${1} is 
+ prevented by local policy!"
+is_cmd_in_list ${FORCE_PASSWD_LIST} && force_password
+if $ROOT_FM; then
+	force_password  # Force password to start root filemanager (only for filemanager-gksudo2)
+	export ROOT_FM=""
+fi
+if [[ "$cmd_minus_path" = "mate-terminal" ]]; then
+	set -- "$@" "--disable-factory" # Force mate-terminal to start new PID
+elif [[ "$cmd_minus_path" = "gnome-terminal" ]] && ( ! grep -q 'gnome-terminal.*--wait' <<< $@ ); then
+	set -- "$@" "--wait" # Force gnome-terminal to use --wait option
+fi
+[[ -z "$DISPLAY" ]] && export DISPLAY=$(ps -e e | grep 'Xorg' |  sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p' | tail -1)
+if [[ -z "$XDG_RUNTIME_DIR" ]]; then
+	XDG_RUNTIME_DIR=/tmp/gk/runtime-gk-$USER 
+	[[ ! -d "$XDG_RUNTIME_DIR" ]] && mkdir -m0700 $XDG_RUNTIME_DIR
+fi
+if [[ $XDG_CURRENT_DESKTOP = "KDE" ]] && [[ -z $active_kscrn ]]; then
+	export active_kscrn=$(eval echo "~${USER}")"/.local/share/kscreen"
+fi
+if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # Session is Wayland
+	if [[ -z "$wayland_socket" ]] ; then  # Is top level (not nested)
+		orig_xdg_rundir=$XDG_RUNTIME_DIR
+		## For local (script) use, set WAYLAND_DISPLAY to the full path, but not sure if already done
+		if [[ ! -z "$WAYLAND_DISPLAY" ]]; then
+			wd_no_path=${WAYLAND_DISPLAY##*/}
+			WAYLAND_DISPLAY=$XDG_RUNTIME_DIR"/"$wd_no_path  ## Sets to full path
+		else
+			WAYLAND_DISPLAY=$XDG_RUNTIME_DIR"/wayland-0"
+		fi
+		wayland_socket=$WAYLAND_DISPLAY  # $wayland_socket and $orig_xdg_rundir are retained in case nesting
+	else
+		WAYLAND_DISPLAY=$wayland_socket # Temporary, allows Zenity early access to display if nested gksudo2 used
+	fi
+fi
+if [[ ! -z $WAYLAND_DISPLAY ]] && [[ ! `xhost | grep "localuser:$as_user"` ]]; then
+	need_xhost=true
+	xhost +SI:localuser:$as_user 1>/dev/null # Regretably required for XWayland 
+fi
+zenity --warning --text=" gksudo2 invoked allowing \""$as_user"\"\n access to this display server!" --no-wrap
+sudo_znty orig_xdg_rundir=$orig_xdg_rundir \
+     DISPLAY=$DISPLAY \
+     XAUTHORITY=$XAUTHORITY \
+     XDG_CURRENT_DESKTOP=$XDG_CURRENT_DESKTOP \
+     XDG_SESSION_TYPE=$XDG_SESSION_TYPE \
+     XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
+     WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+     wayland_socket=$wayland_socket \
+     INVOKING_USR=$USER \
+     usr_home=$usr_home \
+     active_kscrn=$active_kscrn \
+     as_user=$as_user \
+     current_dir=$current_dir \
+     gksudo-su $@
+
+[[ $need_xhost = true ]] && xhost -SI:localuser:$as_user 1>/dev/null
+exit 0

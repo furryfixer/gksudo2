@@ -1,0 +1,169 @@
+#!/bin/bash
+####################################################################################
+# GKSUDO-SU Version 2. This script is NOT to be run independently and will fail
+#	 if tried. This secondary script is called by GKSUDO2 for actions requiring
+#	 elevated (sudo) privileges. Required variable assignments are passed in the 
+#    calling statement from GKSUDO2.  Created under GPLv3 license, by
+#    William Rueger (furryfixer). Updated 10/2022
+##=================================================================================##
+
+err_exit1 () {
+	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --width 600 --no-markup 2>/dev/null); then
+		sed 's^\\n^^g' <<< "$*"  # print error without zenity \n format
+	fi
+	rm $xauth_gksudo 2> /dev/null
+	rm /tmp/gk/gk_env_cmd 2> /dev/null
+	rm /tmp/gk/sudo.gk.error 2> /dev/null
+	if [[ -d "$as_usr_rundir" ]]; then
+		umount "$as_usr_rundir/gvfs" 2> /dev/null
+		umount "$as_usr_rundir/doc" 2> /dev/null
+		rm -R $as_usr_rundir
+	fi
+	gk_instances=$(pgrep -c gksudo-su)
+	if [[ $XDG_SESSION_TYPE = "wayland" ]] && [[ $gk_instances -lt 2 ]]; then
+		chmod 0700 $orig_xdg_rundir
+		chmod 0755 $wayland_socket
+	fi
+	exit 1
+}
+
+restore_kscrn () {
+	if [[ -L $as_usr_kscrn ]]; then
+		rm $as_usr_kscrn
+		[[ -d $as_usr_kscrn"0" ]] && mv $as_usr_kscrn"0" $as_usr_kscrn
+	fi
+}
+####
+if [[ -z "$INVOKING_USR" ]]; then
+	err_exit1 "STOP! gksudo-su improperly called, or
+attempted to run independently of gksudo2 "
+fi
+as_usr_rundir=$(mktemp -d /tmp/gk/runtime-gksudo-as-$as_user.XXXX)
+chmod 0700 $as_usr_rundir
+chown $as_user $as_usr_rundir
+
+if [[ $XDG_SESSION_TYPE != "wayland" ]] && [ -z "$WAYLAND_DISPLAY" ]; then  # X11 Session
+	if  ! pgrep Xorg &> /dev/null; then
+		echo "STOP! No X11 or Wayland Display Server found for gksudo2" >&2
+		exit 1
+	fi
+	[[ -z "$DISPLAY" ]] && DISPLAY=":0"
+	xauth_gksudo=$(mktemp /tmp/gk/.gk.XXXXXXX)
+	cp $XAUTHORITY $xauth_gksudo
+	XAUTHORITY=$xauth_gksudo
+	chmod 0600 $xauth_gksudo
+	chown $as_user $xauth_gksudo
+	xauth_loc=""
+	if [ ! -s "$XAUTHORITY" ]; then
+		x11_ps=$(ps -C Xorg -o args h)
+		xauth_loc=$(echo ${x11_ps#*auth } | cut -d " " -f 1)
+		if [ ! -s "$xauth_loc" ]; then
+			err_exit1 "STOP! Unable to find working .Xauthority file "
+		else
+			cp $xauth_loc $XAUTHORITY
+		fi
+	fi
+
+else # WAYLAND SESSION!
+
+	XDG_SESSION_TYPE="wayland"
+	chmod 0755 $orig_xdg_rundir
+	if ! (chmod 0777 $wayland_socket); then
+		err_exit1 "ERROR! Unable to find or access Wayland Display socket"
+	fi
+	as_usr_wayland_sock=$as_usr_rundir/wayland-0
+	if [ ! -L "$as_usr_wayland_sock" ]; then
+		if ! (ln -s $wayland_socket $as_usr_wayland_sock 2>/dev/null); then
+			err_exit1 "STOP! Failed to link to Wayland Socket "
+		fi
+	fi
+fi
+as_usr_home=$(eval echo "~${as_user}")
+timestamp=`date +%D" "%H:%M:%S`
+program=$@
+echo "${timestamp}.  User <${INVOKING_USR}> ran <$program> as user <${as_user}>"  >> /var/log/gksudo2.log
+#
+echo "#!/bin/bash
+   set -a
+   . /etc/environment
+   cd ${current_dir} 2>/dev/null
+   orig_xdg_rundir=${orig_xdg_rundir}
+   DISPLAY=${DISPLAY}
+   XAUTHORITY=${xauth_gksudo}
+   XDG_SESSION_TYPE=${XDG_SESSION_TYPE}
+   XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP}
+   XDG_RUNTIME_DIR=${as_usr_rundir}
+   XDG_CONFIG_HOME=${as_usr_home}/.config
+   active_kscrn=${active_kscrn}
+   wayland_socket=${wayland_socket}
+   WAYLAND_DISPLAY=${as_usr_wayland_sock}" > /tmp/gk/gk_env_cmd
+if [[ $XDG_CURRENT_DESKTOP = "KDE" ]]; then
+	as_usr_kscrn="${as_usr_home}/.local/share/kscreen"
+	if [[ $as_usr_kscrn != $active_kscrn ]] && [[ ! -L $as_usr_kscrn ]]; then
+		if [[ -d $as_usr_kscrn ]]; then
+			[[ ! -d $as_usr_kscrn"0" ]] && mv $as_usr_kscrn $as_usr_kscrn"0"
+			chown $as_usr $as_usr_kscrn"0"
+		fi
+		ln -s $active_kscrn $as_usr_kscrn
+		chown  $as_usr $as_usr_kscrn
+	fi
+	echo "   KDE_SESSION_VERSION=5
+   KDE_FULL_SESSION=true" >> /tmp/gk/gk_env_cmd
+else
+	as_usr_kscrn="null"
+fi
+# All Wayland, and some Gnome apps, require dbus-launch with this method.
+	#    dbus-run-session does not work, so try to PID new dbus-daemon
+	#    instances and remove them after.
+echo "   last_dbus=\$(pgrep -n dbus-daemon)
+   dbus-launch ${@}
+   new_dbus=\$(pgrep -n dbus-daemon)
+   [[ \$new_dbus -ne \$last_dbus ]] && kill \$new_dbus" >> /tmp/gk/gk_env_cmd
+chmod 0777 /tmp/gk/gk_env_cmd
+
+if ! sudo -u $as_user /tmp/gk/gk_env_cmd &>/tmp/gk/sudo.gk.error; then
+	restore_kscrn
+	if [[ -s /tmp/gk/sudo.gk.error ]]; then  # If no error reported, we will allow to fail silently
+		if grep "command as another user" /tmp/gk/sudo.gk.error; then
+			err_exit1 "$(tail -n 3 /tmp/gk/sudo.gk.error)"
+		else
+			sed -E -n -i '/no authorization|WARNING|No protocol specified|ToQuit/!p' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/assertion|isPrimaryInstance|Initializing|QDir|usershare/!p' /tmp/gk/sudo.gk.error
+			err_exit1 "Error! if cryptic, possibly from unclean exit of child process
+ $(cat /tmp/gk/sudo.gk.error)"
+		fi
+	fi
+else  # succeeded, but check errors/warnings
+	restore_kscrn
+	if [[ -s /tmp/gk/sudo.gk.error ]]; then
+		#  Filter some normally superfluous warnings from stderr/stdout
+		tail -n 2 /tmp/gk/sudo.gk.error > /tmp/gk/parsed-error 
+		if ! grep -E 'uninitialized|exiting|assertion|Bind on socket|isPrimaryInstance|WARNING|kdeinit5|Failed to connect|Initializing|QDir|ToQuit|net usershare' /tmp/gk/parsed-error; then
+			#sed -i '/^[[:space:]]*$/d' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/no authorization|No protocol specified|ToQuit|WARNING|usershare info/!p' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir/!p' /tmp/gk/sudo.gk.error
+			err_len=$(wc -l < /tmp/gk/sudo.gk.error)
+			if [[ "$err_len" -gt 5 ]]; then
+				zenity --warning --title="gksudo2 Warning" --text="$(head -n 3 /tmp/gk/sudo.gk.error)
+$(tail -n 3 /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
+			elif [[ "$err_len" -ne 0 ]]; then
+				zenity --warning --title="gksudo2 Warning" --text="$(cat /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
+			fi
+		fi
+	fi
+fi
+
+rm $xauth_gksudo 2> /dev/null
+rm /tmp/gk/gk_env_cmd 2> /dev/null
+rm /tmp/gk/sudo.gk.error 2> /dev/null
+if [[ -d "$as_usr_rundir" ]]; then
+	umount "$as_usr_rundir/gvfs" 2> /dev/null
+	umount "$as_usr_rundir/doc" 2> /dev/null
+	rm -R $as_usr_rundir
+fi
+gk_instances=$(pgrep -c gksudo-su)
+if [[ $XDG_SESSION_TYPE = "wayland" ]] && [[ $gk_instances -lt 2 ]]; then
+	chmod 0700 $orig_xdg_rundir
+	chmod 0755 $wayland_socket
+fi
+exit 0
