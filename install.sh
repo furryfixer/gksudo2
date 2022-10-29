@@ -32,7 +32,7 @@ else
 \"/usr/local/bin\" is not in System \$PATH
 Executable files will be placed in \"/usr/bin\" instead.
 
-Press any key to continue."
+Press <Enter> key to continue."
 read a
 	prefix="/usr/bin"
 fi
