@@ -2,8 +2,8 @@
 ####################################################################################
 # GKSUDO2 (drop-in replacement for gksudo, gksu) without pkexec,
 #		for X11 or Wayland. GPLv3 license, by William Rueger (furryfixer) 
-# Requires: Zenity, sudo, and elogind or systemd dependencies.
-# Also requires a helper script, GKSUDO-SU, for actions with elevated privileges.
+# Requires: Zenity, sudo, polkit and elogind or systemd dependencies.
+# Also requires a helper script, GKSUDO2-SU, for actions with elevated privileges.
 #
 # The invoking user MUST be a SUDOER, either individually or as part of a 
 # group (such as wheel or sudo) with sudo privileges. This script is designed
@@ -16,11 +16,11 @@
 # (preceded by "-" or "--") they WILL BE IGNORED. "-" or "--" options are
 # stripped until a non-dash field encountered, at which all remaining fields,
 # including trailing "-" options, are passed on to sudo as a command to execute.
-# A temporary helper script, "/tmp/gk/gksudo-env" is generated each time gksudo2
-# is invoked, which sets the environment for sudo. Sudo Credential Settings
+# A temporary helper script, "/tmp/gk/gk-env-cmd" is generated each time gksudo2
+# is invoked, which sets the environment for sudo/pkexec. Sudo Credential Settings
 # (cached, or NOPASSWD) are respected by default, however the user can add to,
 # or modify, two strings below for desired commands/apps, either to prevent them
-# from running at all with gksudo (NEVER_AUTH_LIST), or to force them to prompt
+# from running at all with gksudo2 (NEVER_AUTH_LIST), or to force them to prompt
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
@@ -81,7 +81,7 @@ usr_home=$(eval echo "~${USER}")
 current_dir=`pwd` 
 [[ -f /tmp/gk/zenity-sudo-passwd ]] && rm /tmp/gk/zenity-sudo-passwd
 echo "#!/bin/bash
-zenity --entry --title=\"gksudo2\" --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd
+zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd
 chmod 0777 /tmp/gk/zenity-sudo-passwd
 export SUDO_ASKPASS="/tmp/gk/zenity-sudo-passwd"
 as_user="root"
@@ -168,7 +168,7 @@ sudo_znty orig_xdg_rundir=$orig_xdg_rundir \
      active_kscrn=$active_kscrn \
      as_user=$as_user \
      current_dir=$current_dir \
-     gksudo-su $@
+     gksudo2-su $@
 
 [[ $need_xhost = true ]] && xhost -SI:localuser:$as_user 1>/dev/null
 exit 0
