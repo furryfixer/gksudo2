@@ -37,7 +37,7 @@ It is not difficult to install this script, but the author does not encourage "p
 - chmod +x install.sh
 - sudo ./install.sh
 
-"gksudo" and "gksu" commands will be linked to gksudo2 if they do not exist. To remove gksudo2, run as ROOT the provided "uninstall.sh".   
+If the "gksudo" and "gksu" commands do not exist, they will be linked to gksudo2. To remove gksudo2, run as ROOT the provided "uninstall" script.   
 Optionally, if a filemanager context menu entry for gksudo2 is desired, install filemanager-gksudo2 , from here:
 
 https://github.com/furryfixer/filemanager-gksudo2 
