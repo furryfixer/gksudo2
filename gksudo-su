@@ -1,6 +1,6 @@
 #!/bin/bash
 ####################################################################################
-# GKSUDO-SU Version 2. This script is NOT to be run independently and will fail
+# GKSUDO2-SU. This script is NOT to be run independently and will fail
 #	 if tried. This secondary script is called by GKSUDO2 for actions requiring
 #	 elevated (sudo) privileges. Required variable assignments are passed in the 
 #    calling statement from GKSUDO2.  Created under GPLv3 license, by
@@ -12,14 +12,14 @@ err_exit1 () {
 		sed 's^\\n^^g' <<< "$*"  # print error without zenity \n format
 	fi
 	rm $xauth_gksudo 2> /dev/null
-	rm /tmp/gk/gk_env_cmd 2> /dev/null
+	rm /tmp/gk/gk-env-cmd 2> /dev/null
 	rm /tmp/gk/sudo.gk.error 2> /dev/null
 	if [[ -d "$as_usr_rundir" ]]; then
 		umount "$as_usr_rundir/gvfs" 2> /dev/null
 		umount "$as_usr_rundir/doc" 2> /dev/null
 		rm -R $as_usr_rundir
 	fi
-	gk_instances=$(pgrep -c gksudo-su)
+	gk_instances=$(pgrep -c gksudo2-su)
 	if [[ $XDG_SESSION_TYPE = "wayland" ]] && [[ $gk_instances -lt 2 ]]; then
 		chmod 0700 $orig_xdg_rundir
 		chmod 0755 $wayland_socket
@@ -35,7 +35,7 @@ restore_kscrn () {
 }
 ####
 if [[ -z "$INVOKING_USR" ]]; then
-	err_exit1 "STOP! gksudo-su improperly called, or
+	err_exit1 "STOP! gksudo2-su improperly called, or
 attempted to run independently of gksudo2 "
 fi
 as_usr_rundir=$(mktemp -d /tmp/gk/runtime-gksudo-as-$as_user.XXXX)
@@ -96,7 +96,7 @@ echo "#!/bin/bash
    XDG_CONFIG_HOME=${as_usr_home}/.config
    active_kscrn=${active_kscrn}
    wayland_socket=${wayland_socket}
-   WAYLAND_DISPLAY=${as_usr_wayland_sock}" > /tmp/gk/gk_env_cmd
+   WAYLAND_DISPLAY=${as_usr_wayland_sock}" > /tmp/gk/gk-env-cmd
 if [[ $XDG_CURRENT_DESKTOP = "KDE" ]]; then
 	as_usr_kscrn="${as_usr_home}/.local/share/kscreen"
 	if [[ $as_usr_kscrn != $active_kscrn ]] && [[ ! -L $as_usr_kscrn ]]; then
@@ -108,7 +108,7 @@ if [[ $XDG_CURRENT_DESKTOP = "KDE" ]]; then
 		chown  $as_usr $as_usr_kscrn
 	fi
 	echo "   KDE_SESSION_VERSION=5
-   KDE_FULL_SESSION=true" >> /tmp/gk/gk_env_cmd
+   KDE_FULL_SESSION=true" >> /tmp/gk/gk-env-cmd
 else
 	as_usr_kscrn="null"
 fi
@@ -118,10 +118,10 @@ fi
 echo "   last_dbus=\$(pgrep -n dbus-daemon)
    dbus-launch ${@}
    new_dbus=\$(pgrep -n dbus-daemon)
-   [[ \$new_dbus -ne \$last_dbus ]] && kill \$new_dbus" >> /tmp/gk/gk_env_cmd
-chmod 0777 /tmp/gk/gk_env_cmd
+   [[ \$new_dbus -ne \$last_dbus ]] && kill \$new_dbus" >> /tmp/gk/gk-env-cmd
+chmod +x /tmp/gk/gk-env-cmd
 
-if ! sudo -u $as_user /tmp/gk/gk_env_cmd &>/tmp/gk/sudo.gk.error; then
+if ! sudo -u $INVOKING_USR  pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
 	restore_kscrn
 	if [[ -s /tmp/gk/sudo.gk.error ]]; then  # If no error reported, we will allow to fail silently
 		if grep "command as another user" /tmp/gk/sudo.gk.error; then
@@ -154,14 +154,14 @@ $(tail -n 3 /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
 fi
 
 rm $xauth_gksudo 2> /dev/null
-rm /tmp/gk/gk_env_cmd 2> /dev/null
+rm /tmp/gk/gk-env-cmd 2> /dev/null
 rm /tmp/gk/sudo.gk.error 2> /dev/null
 if [[ -d "$as_usr_rundir" ]]; then
 	umount "$as_usr_rundir/gvfs" 2> /dev/null
 	umount "$as_usr_rundir/doc" 2> /dev/null
 	rm -R $as_usr_rundir
 fi
-gk_instances=$(pgrep -c gksudo-su)
+gk_instances=$(pgrep -c gksudo2-su)
 if [[ $XDG_SESSION_TYPE = "wayland" ]] && [[ $gk_instances -lt 2 ]]; then
 	chmod 0700 $orig_xdg_rundir
 	chmod 0755 $wayland_socket
