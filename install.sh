@@ -13,14 +13,14 @@ echo "Installing gksudo2...
 "
 echo "Removing any previous installed files and folders...
 "
-[[ -L /usr/local/bin/gksudo ]] && rm -r -v /usr/local/bin/gksudo
-[[ -L /usr/local/bin/gksu ]] && rm -r -v /usr/local/bin/gksu
-[[ -L /usr/bin/gksudo ]] && rm -r -v /usr/bin/gksudo
-[[ -L /usr/bin/gksu ]] && rm -r -v /usr/bin/gksu
-[[ -f /usr/local/bin/gksudo2 ]] && rm -r -v /usr/local/bin/gksudo2
-[[ -f /usr/local/bin/gksudo2-su ]] && rm -r -v /usr/local/bin/gksudo2-su
-[[ -f /usr/bin/gksudo2 ]] && rm -r -v /usr/bin/gksudo2
-[[ -f /usr/bin/gksudo2-su ]] && rm -r -v /usr/bin/gksudo2-su
+[[ -L /usr/local/bin/gksudo ]] && rm -v /usr/local/bin/gksudo
+[[ -L /usr/local/bin/gksu ]] && rm -v /usr/local/bin/gksu
+[[ -L /usr/bin/gksudo ]] && rm -v /usr/bin/gksudo
+[[ -L /usr/bin/gksu ]] && rm -v /usr/bin/gksu
+[[ -f /usr/local/bin/gksudo2 ]] && rm -v /usr/local/bin/gksudo2
+[[ -f /usr/local/bin/gksudo2-su ]] && rm -v /usr/local/bin/gksudo2-su
+[[ -f /usr/bin/gksudo2 ]] && rm -v /usr/bin/gksudo2
+[[ -f /usr/bin/gksudo2-su ]] && rm -v /usr/bin/gksudo2-su
 [[ -f  /usr/share/polkit-1/actions/gksudo2.gk.env.cmd.policy ]] && rm -v /usr/share/polkit-1/actions/gksudo2.gk.env.cmd.policy
 [[ -f  /etc/polkit-1/rules.d/47-gksudo2-gk-env-cmd.rules ]] && rm -v /etc/polkit-1/rules.d/47-gksudo2-gk-env-cmd.rules
 # Check PATH
