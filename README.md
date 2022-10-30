@@ -1,5 +1,5 @@
 # gksudo2
-## Gksudo alternative/replacement for X11 or Wayland
+## Gksudo Replacement, GUI open as Root, for X11 and Wayland, in Plasma, Gnome, XFCE.
 ### gksudo2 [-u | --user \<user\>] \<command\>
 #### gksudo [-u | --user \<user\>] \<command\>
 #### gksu [-u | --user \<user\>] \<command\>
