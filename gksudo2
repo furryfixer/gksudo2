@@ -117,9 +117,8 @@ cmd_minus_path=${1##*/}       # Strips  /usr/bin/.../  prefixes
 hash "$1" 2>/dev/null || err_exit1 "STOP! Command ${1} not found"
 is_cmd_in_list ${NEVER_AUTH_LIST} && err_exit1 "STOP! gksudo2 execution of ${1} is 
  prevented by local policy!"
-is_cmd_in_list ${FORCE_PASSWD_LIST} && force_password
-if [[ $ROOT_FM = true ]]; then  # $ROOT_FM only set by filemanager-gksudo2
-	force_password          # Force password to start root filemanager
+if (is_cmd_in_list ${FORCE_PASSWD_LIST}) || [[ $ROOT_FM = true ]]; then  # $ROOT_FM set by filemanager-gksudo2
+	force_password    
 	export ROOT_FM=""
 fi
 if [[ "$cmd_minus_path" = "mate-terminal" ]]; then
