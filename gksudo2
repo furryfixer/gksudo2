@@ -24,12 +24,12 @@
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
-# Updated 10/2022. 
+# Updated 11/2022. 
 ##=================================================================================##
 
 FORCE_PASSWD_LIST=" "
 
-NEVER_AUTH_LIST="kill pkill su rm chmod chown"
+NEVER_AUTH_LIST="kill pkill su rm chmod chown firefox"
 
 ##=================================================================================##
 
@@ -39,7 +39,6 @@ err_exit1 () {
 	fi
 	exit 1
 }
-
 sudo_znty () {
 	if ! sudo -A "$@" > /dev/null 2>/tmp/gk/sudo-error; then
 		if grep "3 incorrect password attempts" /tmp/gk/sudo-error; then
@@ -55,7 +54,7 @@ is_cmd_in_list () {
 	while [ -n "$1" ]
 	do
 		list_minus_path=${1##*/}
-		[[ $cmd_minus_path  = "${list_minus_path}" ]] &&  return 0
+		[[ $cmd_minus_path  = "$list_minus_path" ]] &&  return 0
 		shift
 	done
 	return 1
@@ -78,7 +77,7 @@ if [[ ! -f /tmp/gk/sudo-error ]]; then
 fi
 USER=$(whoami)   # in case odd "su" invocation to root. Force to be the same.
 usr_home=$(eval echo "~${USER}")
-current_dir=`pwd` 
+current_dir="`pwd`" 
 [[ -f /tmp/gk/zenity-sudo-passwd ]] && rm /tmp/gk/zenity-sudo-passwd
 echo "#!/bin/bash
 zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd
@@ -99,7 +98,7 @@ do
 	-* | --*)    # All other options only 1 shift needed to erase
 		shift
 		;; 
-	 *)          # Remaining commandline conditionally passed to sudo
+	 *)          # Remaining commandline conditionally passed to sudo pkexec
 		break
 		;;
 	esac
@@ -118,8 +117,7 @@ hash "$1" 2>/dev/null || err_exit1 "STOP! Command ${1} not found"
 is_cmd_in_list ${NEVER_AUTH_LIST} && err_exit1 "STOP! gksudo2 execution of ${1} is 
  prevented by local policy!"
 if (is_cmd_in_list ${FORCE_PASSWD_LIST}) || [[ $ROOT_FM = true ]]; then  # $ROOT_FM set by filemanager-gksudo2
-	force_password    
-	export ROOT_FM=""
+	force_password
 fi
 if [[ "$cmd_minus_path" = "mate-terminal" ]]; then
 	set -- "$@" "--disable-factory" # Force mate-terminal to start new PID
@@ -131,43 +129,39 @@ if [[ -z "$XDG_RUNTIME_DIR" ]]; then
 	XDG_RUNTIME_DIR=/tmp/gk/runtime-gk-$USER 
 	[[ ! -d "$XDG_RUNTIME_DIR" ]] && mkdir -m0700 $XDG_RUNTIME_DIR
 fi
-if [[ $XDG_CURRENT_DESKTOP = "KDE" ]] && [[ -z $active_kscrn ]]; then
-	export active_kscrn=$(eval echo "~${USER}")"/.local/share/kscreen"
-fi
 if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # Session is Wayland
+	XDG_SESSION_TYPE="wayland"  # set if not already done
 	if [[ -z "$wayland_socket" ]] ; then  # Is top level (not nested)
-		orig_xdg_rundir=$XDG_RUNTIME_DIR
+		orig_xdg_rundir="$XDG_RUNTIME_DIR"
 		## For local (script) use, set WAYLAND_DISPLAY to the full path, but not sure if already done
 		if [[ ! -z "$WAYLAND_DISPLAY" ]]; then
 			wd_no_path=${WAYLAND_DISPLAY##*/}
-			WAYLAND_DISPLAY=$XDG_RUNTIME_DIR"/"$wd_no_path  ## Sets to full path
+			WAYLAND_DISPLAY="${XDG_RUNTIME_DIR}/${wd_no_path}"  ## Sets to full path
 		else
-			WAYLAND_DISPLAY=$XDG_RUNTIME_DIR"/wayland-0"
+			WAYLAND_DISPLAY="${XDG_RUNTIME_DIR}/wayland-0"
 		fi
-		wayland_socket=$WAYLAND_DISPLAY  # $wayland_socket and $orig_xdg_rundir are retained in case nesting
+		wayland_socket="$WAYLAND_DISPLAY"  # $wayland_socket and $orig_xdg_rundir are retained in case nesting
 	else
-		WAYLAND_DISPLAY=$wayland_socket # Temporary, allows Zenity early access to display if nested gksudo2 used
+		WAYLAND_DISPLAY="$wayland_socket" # Temporary, allows Zenity early access to display if nested gksudo2 used
 	fi
-fi
-if [[ ! -z $WAYLAND_DISPLAY ]] && [[ ! `xhost | grep "localuser:$as_user"` ]]; then
-	need_xhost=true
-	xhost +SI:localuser:$as_user 1>/dev/null # Regretably required for XWayland 
+	## Spacefm bug requires next line if Wayland
+	[[ $cmd_minus_path = "spacefm" ]] && WAYLAND_DISPLAY="spacefm" 
+else
+	XDG_SESSION_TYPE="x11"
 fi
 zenity --warning --text=" gksudo2 invoked allowing \""$as_user"\"\n access to this display server!" --no-wrap
-sudo_znty orig_xdg_rundir=$orig_xdg_rundir \
+sudo_znty orig_xdg_rundir="$orig_xdg_rundir" \
      DISPLAY=$DISPLAY \
-     XAUTHORITY=$XAUTHORITY \
+     XAUTHORITY="$XAUTHORITY" \
      XDG_CURRENT_DESKTOP=$XDG_CURRENT_DESKTOP \
      XDG_SESSION_TYPE=$XDG_SESSION_TYPE \
-     XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
+     XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
      WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
-     wayland_socket=$wayland_socket \
+     wayland_socket="$wayland_socket" \
      INVOKING_USR=$USER \
-     usr_home=$usr_home \
-     active_kscrn=$active_kscrn \
+     usr_home="$usr_home" \
      as_user=$as_user \
-     current_dir=$current_dir \
+     current_dir="$current_dir" \
      gksudo2-su $@
 
-[[ $need_xhost = true ]] && xhost -SI:localuser:$as_user 1>/dev/null
 exit 0
