@@ -29,7 +29,6 @@ cleanup_files_dbus () {
 	new_dbus=$(pgrep -n dbus-daemon)
 	[[ $new_dbus -ne $last_dbus ]] && kill $new_dbus
 	[[ -f /tmp/gk/kdeglobals ]] && mv /tmp/gk/kdeglobals /root/.config/kdeglobals
-	exit 0
 }
 ####
 if [[ -z "$INVOKING_USR" ]]; then
@@ -114,7 +113,7 @@ fi
 echo "   exec dbus-launch $@" >> /tmp/gk/gk-env-cmd
 chmod +x /tmp/gk/gk-env-cmd
 last_dbus=$(pgrep -n dbus-daemon)
-if ! sudo -u $INVOKING_USR  pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
+if ! pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
 	cleanup_files_dbus 
 	if [[ -s /tmp/gk/sudo.gk.error ]]; then  # If no error reported, we will allow to fail silently
 		if grep "command as another user" /tmp/gk/sudo.gk.error; then
@@ -134,10 +133,10 @@ else  # succeeded, but check errors/warnings
 		if ! grep -E 'uninitialized|exiting|assertion|Bind on socket|isPrimaryInstance|WARNING|kdeinit5|Failed to connect|Initializing|QDir|ToQuit|net usershare|dictionaries' /tmp/gk/parsed-error; then
 			sed -i '/^[[:space:]]*$/d' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/dictionaries|protocol specified|ToQuit|WARNING|usershare info/!p' /tmp/gk/sudo.gk.error
-			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir/!p' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
 			err_len=$(wc -l < /tmp/gk/sudo.gk.error)
 			if [[ "$err_len" -gt 5 ]]; then
-				zenity --warning --title="gksudo2 Warning" --text="$(head -n 3 /tmp/gk/sudo.gk.error)
+				zenity --warning --title="gksudo2 Warning" --text="$(head -n 5 /tmp/gk/sudo.gk.error)
 $(tail -n 3 /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
 			elif [[ "$err_len" -ne 0 ]]; then
 				zenity --warning --title="gksudo2 Warning" --text="$(cat /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
