@@ -49,9 +49,9 @@ Temporary $XDG_RUNTIME_DIR directories are created separately from the standard 
 
 A companion script, "filemanager-gksudo2 " is available in a separate repository. This leverages gksudo2 to provide a menu option allowing the elevation of privileges from within most common file managers. You will be warned when doing this. In single or 2-3 user situations, this can be very convenient for EXAMINING protected files or directories, but should not be abused by indiscriminately (or accidentaly) deleting or modifying them with gksudo2.  Never elevate to superuser when there is no need.
 
-Most web browsers will work with **"gksudo2 -u (*non-root-user*) browser"**, but will fail to run as root. Konqueror will run as root with gksudo2, but for file management only, as web browsing is deliberately disabled. Konqueror web browsing will work if called for a non-root user. 
+Most web browsers will work with **"gksudo2 -u (*non-root-user*) browser"**, but will fail to run as root. Konqueror will run as root with gksudo2, but for file management only, as gksudo2 deliberately disables web browsing. Konqueror web browsing will work if called for a non-root user. 
 
 Gksudo2 relies heavily on creating small temporary files in the /tmp directory.  Obviously, it will run faster and be easier on drives if /tmp is a tmpfs in RAM.
 
 ### Deprecated gksudo-pk Discussion
-Gksudo2 is a rewrite of the deprecated gksudo-pk script, the initial focus of which was to eliminate use of pkexec. Increasing security vulnerabilities make pkexec hardly more secure than sudo. Unfortunately, KDE recently changed their apps to refuse to open with sudo, so in a partial reversion, gksudo2 uses pkexec as a pass-through, as KDE requires it. A custom polkit rule/action pair is once again needed. gksudo-pk will no longer receive updates, so users of gksudo-pk should migrate to gksudo2. 
+Gksudo2 is a rewrite of the deprecated gksudo-pk script, the initial focus of which was to eliminate use of pkexec. Increasing security vulnerabilities make pkexec hardly more secure than sudo. Unfortunately, KDE recently changed their apps to refuse to open with sudo, so in a partial reversion, gksudo2 uses pkexec as a pass-through, as KDE requires it. Gksudo-pk will no longer receive updates, so users of gksudo-pk should migrate to gksudo2. 
