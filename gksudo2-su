@@ -113,7 +113,7 @@ fi
 echo "   exec dbus-launch $@" >> /tmp/gk/gk-env-cmd
 chmod +x /tmp/gk/gk-env-cmd
 last_dbus=$(pgrep -n dbus-daemon)
-if ! pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
+if ! sudo -u $INVOKING_USR pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
 	cleanup_files_dbus 
 	if [[ -s /tmp/gk/sudo.gk.error ]]; then  # If no error reported, we will allow to fail silently
 		if grep "command as another user" /tmp/gk/sudo.gk.error; then
