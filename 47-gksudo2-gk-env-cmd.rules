@@ -1,0 +1,12 @@
+// 47-gksudo2-gk-env-cmd.rules
+
+// Allows local users with sudo privileges to start env without
+// password authorization, if running "/tmp/gk/gk-env-cmd".
+// 
+polkit.addRule(function(action, subject) {
+        if ((action.id == "gksudo2.gk.env.cmd") &&
+            subject.local &&
+            subject.active) {
+            return polkit.Result.YES;
+        }
+});
