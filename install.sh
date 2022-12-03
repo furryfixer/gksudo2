@@ -41,8 +41,8 @@ Copying new files..."
 mkdir -p /etc/polkit-1/rules.d
 cp -v gksudo2 $prefix/
 cp -v gksudo2-su $prefix/
-# cp -v gksudo2.gk.env.cmd.policy /usr/share/polkit-1/actions/ # deprecated
-# cp -v 47-gksudo2-gk-env-cmd.rules /etc/polkit-1/rules.d/     # deprecated
+cp -v gksudo2.gk.env.cmd.policy /usr/share/polkit-1/actions/
+cp -v 47-gksudo2-gk-env-cmd.rules /etc/polkit-1/rules.d/
 chmod -v 0755 $prefix/gksudo2
 chmod -v 0744 $prefix/gksudo2-su
 ln -v -s $prefix/gksudo2 $prefix/gksudo   # recommended to replace "gksudo"
