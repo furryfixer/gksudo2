@@ -24,7 +24,7 @@
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
-# Updated 11/2022. 
+# Updated 12/2022. 
 ##=================================================================================##
 
 FORCE_PASSWD_LIST=" "
@@ -124,7 +124,6 @@ if [[ "$cmd_minus_path" = "mate-terminal" ]]; then
 elif [[ "$cmd_minus_path" = "gnome-terminal" ]] && ( ! grep -q 'gnome-terminal.*--wait' <<< $@ ); then
 	set -- "$@" "--wait" # Force gnome-terminal to use --wait option
 fi
-[[ -z "$DISPLAY" ]] && export DISPLAY=$(ps -e e | grep 'Xorg' |  sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p' | tail -1)
 if [[ -z "$XDG_RUNTIME_DIR" ]]; then
 	XDG_RUNTIME_DIR=/tmp/gk/runtime-gk-$USER 
 	[[ ! -d "$XDG_RUNTIME_DIR" ]] && mkdir -m0700 $XDG_RUNTIME_DIR
