@@ -4,7 +4,7 @@
 #	 if tried. This secondary script is called by GKSUDO2 for actions requiring
 #	 elevated (sudo) privileges. Required variable assignments are passed in the 
 #    calling statement from GKSUDO2.  Created under GPLv3 license, by
-#    William Rueger (furryfixer). Updated 11/2022
+#    William Rueger (furryfixer). Updated 12/2022
 ##=================================================================================##
 err_exit1 () {
 	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --width 600 --no-markup 2>/dev/null); then
@@ -29,6 +29,7 @@ cleanup_files_dbus () {
 	new_dbus=$(pgrep -n dbus-daemon)
 	[[ $new_dbus -ne $last_dbus ]] && kill $new_dbus
 	[[ -f /tmp/gk/kdeglobals ]] && mv /tmp/gk/kdeglobals /root/.config/kdeglobals
+	[[ -f /usr/lib/xdg-desktop-portal ]] && chmod 0711 /usr/lib/xdg-desktop-portal
 }
 ####
 if [[ -z "$INVOKING_USR" ]]; then
@@ -43,22 +44,19 @@ cp $XAUTHORITY $xauth_gksudo
 XAUTHORITY=$xauth_gksudo
 chmod 0600 $xauth_gksudo
 chown $as_user $xauth_gksudo
-xauth_loc=""
-if [ ! -s "$XAUTHORITY" ]; then
-	x11_ps=$(ps -C Xorg -o args h)
-	xauth_loc=$(echo ${x11_ps#*auth } | cut -d " " -f 1)
-	cp $xauth_loc $XAUTHORITY
-fi
-
 if [[ $XDG_SESSION_TYPE = "x11" ]]; then  # X11 Session
 	if  ! pgrep Xorg &> /dev/null; then
 		echo "STOP! No X11 or Wayland Display Server found for gksudo2" >&2
 		exit 1
 	fi
 	if [ ! -s "$XAUTHORITY" ]; then
+		x11_ps=$(ps -C Xorg -o args h)
+		cp $(echo ${x11_ps#*auth } | cut -d " " -f 1) $XAUTHORITY
+	fi
+	if [ ! -s "$XAUTHORITY" ]; then
 		err_exit1 "STOP! Unable to find working Xauthority file "
 	fi	
-	[[ -z "$DISPLAY" ]] && DISPLAY=":0"
+	[[ -z "$DISPLAY" ]] && err_exit1 "STOP! \$DISPLAY not set. Xserver inaccessible"
 
 else # WAYLAND SESSION!
 
@@ -72,10 +70,17 @@ else # WAYLAND SESSION!
 			err_exit1 "STOP! Failed to link to Wayland Socket "
 		fi
 	fi
-	if [ ! -s "$XAUTHORITY" ]; then
-		zenity --warning --title="gksudo2 Warning" --text="No working Xauthority file. Xwayland will fail"
+	# Wayland apps may wrongly set/change $DISPLAY used by Xwayland (e.g. mate-terminal)
+	# Reacquire proper $DISPLAY setting 
+	if pid_xwayland=$(pgrep Xwayland | tail -1); then
+		DISPLAY=$(ps -ho args $pid_xwayland | cut -d " " -f 2)	
+	else
+		DISPLAY=$(ps eh -e | grep -m 1 ' WAYLAND_DISPLAY' | sed -rn 's/.* DISPLAY=//p' | cut -d " " -f 1)
 	fi
-	[[ -z "$DISPLAY" ]] && DISPLAY=":1"
+fi
+# Hack to prevent xdg-desktop-portal hanging for non-root gksudo2 on Gnome
+if pgrep "gnome-session" >/dev/null && [[ $as_user != "root" ]]; then
+	[[ -f /usr/lib/xdg-desktop-portal ]] &&	chmod 0710 /usr/lib/xdg-desktop-portal
 fi
 as_usr_home=$(eval echo "~${as_user}")
 timestamp=`date +%D" "%H:%M:%S`
