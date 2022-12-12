@@ -7,7 +7,7 @@
 A drop-in replacement for **gksu** and **gksudo**, with fewer options. **WORKS FOR WAYLAND** as well as for X11. Gksudo2 is a simple bash script.  **sudo** credentials are used by gksudo2 with pkexec to **launch graphical programs as root, or AS ANOTHER LOCAL USER**. It does NOT use **xhost**, or call xauth directly. This script is **NOT SECURE** by modern standards, although **it will always send a warning notification** to the display server. Gksudo2 is not recommended on multiple networked machines, with ssh, or unless behind a firewall. Convenience is attained at the expense of security. **Use at YOUR OWN RISK**. Tested and hopefully works in multiple desktop environments, including **KDE Plasma (Xorg and Wayland), XFCE, MATE, GNOME (Xorg and Wayland), LXQT**. Works in both **systemd (Arch)** and **non-systemd (Void)** systems.  Works for **gnome-terminal**, **konsole**, **nautilus**, **dolphin** and most GUI text editors in both Wayland and Xorg. Sudo administrative rules/users/groups are used for authorization.  
 
 ## Dependencies
-**bash, sudo, dbus, polkit** (and a polkit-agent)**, zenity**
+**bash, sudo, dbus, polkit, zenity**
 
 
 ## Options
