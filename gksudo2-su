@@ -71,8 +71,9 @@ else # WAYLAND SESSION!
 		fi
 	fi
 	# Wayland apps may wrongly set/change $DISPLAY used by Xwayland (e.g. mate-terminal)
-	# Reacquire proper $DISPLAY setting 
-	if pid_xwayland=$(pgrep Xwayland | tail -1); then
+	# Reacquire proper $DISPLAY setting
+	if pgrep "Xwayland" >/dev/null; then
+		pid_xwayland=$(pgrep Xwayland | tail -1)
 		DISPLAY=$(ps -ho args $pid_xwayland | cut -d " " -f 2)	
 	else
 		DISPLAY=$(ps eh -e | grep -m 1 ' WAYLAND_DISPLAY' | sed -rn 's/.* DISPLAY=//p' | cut -d " " -f 1)
