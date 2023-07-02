@@ -1,5 +1,5 @@
 # gksudo2
-## Gksudo Replacement, GUI open as Root, for X11 and Wayland, in Plasma, Gnome, XFCE.
+## Gksudo Replacement, GUI open as Root or Other User, for X11 and Wayland, in Plasma, Gnome, XFCE, LXQT, MATE.
 ### gksudo2 [-u | --user \<user\>] \<command\>
 #### gksudo [-u | --user \<user\>] \<command\>
 #### gksu [-u | --user \<user\>] \<command\>
@@ -15,10 +15,10 @@ Only the **--user | -u** options are actually used, and as with sudo, may be omi
 
 ## Applicability
 gksudo2 is designed to be fairly universal, but has not been extensively tested. Desktop environments tested so far include:
-**XFCE 4.16, KDE Plasma 5 (Wayland and Xorg), MATE 1.26, LXQT 1.0, Gnome 40+ (Wayland and Xorg)**. Both **systemd** (Arch) and **non-systemd** (Void) distributions have been tested. Gksudo2 works with the following display managers: **none(startx), xdm, slim, lxdm, lightdm, gdm**. I3 and Sway have been poorly tested, but should work, as long as a polkit-agent is available.
+**XFCE 4.18, KDE Plasma 5 (Wayland and Xorg), MATE 1.26, LXQT 1.3, Gnome 44 (Wayland and Xorg)**. Both **systemd** (Arch) and **non-systemd** (Void) distributions have been tested. Gksudo2 works with the following display managers: **none(startx), xdm, slim, lxdm, lightdm, gdm**. I3 and Sway have been poorly tested, but should work, as long as a polkit-agent is available.
 
 ## Details
-The invoking user **must be LOCAL** and **MUST be a SUDOER**, either as an individual, or by group membership (often "wheel" or "sudo"). The **-u | --user** option allows gksudo2 to run a program as **ANY STANDARD USER, as well as root**.  
+The invoking user **must be LOCAL** and **MUST be a SUDOER**, either as an individual, or by group membership (often "wheel" or "sudo"). The **-u | --user** option allows gksudo2 to run a program as **ANY STANDARD LOCAL USER, as well as root**.  
 
 An important key feature of gksudo2 is the creation of a proper environment for sudo to use.  **/etc/environment** is sourced, and **Xauthority**, **Display**, and **wayland_display** variables are borrowed/provided, as well as a runtime directory, and some specific variables for KDE, if needed.  While this is a larger environment than the basic one pkexec uses by default, it is still (slightly) less than that of a regular user.  
 
@@ -49,7 +49,9 @@ Temporary $XDG_RUNTIME_DIR directories are created separately from the standard 
 
 A companion script, "filemanager-gksudo2 " is available in a separate repository. This leverages gksudo2 to provide a menu option allowing the elevation of privileges from within most common file managers.
 
-Most web browsers will work with **"gksudo2 -u (*non-root-user*) browser"**, but will fail to run as root. Konqueror will run as root with gksudo2, but for file management only, as gksudo2 deliberately disables web browsing. Konqueror web browsing will work if called for a non-root user. 
+Most web browsers will work with **"gksudo2 -u (*non-root-user*) browser"**, but will fail to run as root. Konqueror will run as root with gksudo2, but for file management only, as gksudo2 deliberately disables web browsing. Konqueror web browsing will work if called for a non-root user.
+
+For an active mate-session, Caja works fine when called by gksudo2 for non-root users, but the process may hang on closing window, requiring manual interrupt to continue bash session it was called from.
 
 Gksudo2 relies heavily on creating small temporary files in the /tmp directory.  Obviously, it will run faster and be easier on drives if /tmp is a tmpfs in RAM.
 
