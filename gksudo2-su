@@ -1,10 +1,10 @@
 #!/bin/bash
 ####################################################################################
 # GKSUDO2-SU. This script is NOT to be run independently and will fail
-#	 if tried. This secondary script is called by GKSUDO2 for actions requiring
-#	 elevated (sudo) privileges. Required variable assignments are passed in the 
-#    calling statement from GKSUDO2.  Created under GPLv3 license, by
-#    William Rueger (furryfixer). Updated 12/2022
+#	if tried. This secondary script is called by GKSUDO2 for actions requiring
+#	elevated (sudo) privileges. Required variable assignments are passed in the 
+#	calling statement from GKSUDO2.  Created under GPLv3 license, by
+#	William Rueger (furryfixer). Updated 07/2023
 ##=================================================================================##
 err_exit1 () {
 	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --width 600 --no-markup 2>/dev/null); then
@@ -26,10 +26,9 @@ err_exit1 () {
 	exit 1
 }
 cleanup_files_dbus () {
-	new_dbus=$(pgrep -n dbus-daemon)
-	[[ $new_dbus -ne $last_dbus ]] && kill $new_dbus
+	read new_dbus < $as_usr_rundir/ps-dbus
+	[[ $new_dbus -ne $last_dbus ]] && kill -- -$new_dbus
 	[[ -f /tmp/gk/kdeglobals ]] && mv /tmp/gk/kdeglobals /root/.config/kdeglobals
-	[[ -f /usr/lib/xdg-desktop-portal ]] && chmod 0711 /usr/lib/xdg-desktop-portal
 }
 ####
 if [[ -z "$INVOKING_USR" ]]; then
@@ -79,10 +78,6 @@ else # WAYLAND SESSION!
 		DISPLAY=$(ps eh -e | grep -m 1 ' WAYLAND_DISPLAY' | sed -rn 's/.* DISPLAY=//p' | cut -d " " -f 1)
 	fi
 fi
-# Hack to prevent xdg-desktop-portal hanging for non-root gksudo2 on Gnome
-if pgrep "gnome-session" >/dev/null && [[ $as_user != "root" ]]; then
-	[[ -f /usr/lib/xdg-desktop-portal ]] &&	chmod 0710 /usr/lib/xdg-desktop-portal
-fi
 as_usr_home=$(eval echo "~${as_user}")
 timestamp=`date +%D" "%H:%M:%S`
 program=$@
@@ -101,6 +96,7 @@ echo "#!/bin/bash
    XDG_CONFIG_HOME=\"${as_usr_home}/.config\"
    WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
    wayland_socket=${wayland_socket}" > /tmp/gk/gk-env-cmd
+
 if grep -q 'konqueror' <<< "$1"  &&  [[ $as_user = "root" ]]; then
 ## Allow root konqueror but Prevent URL browsing as root
 	echo "   QTWEBENGINE_DISABLE_SANDBOX=1" >> /tmp/gk/gk-env-cmd
@@ -113,10 +109,20 @@ rule_count=1
 rule_1=open,,,,http,,,false" >> /root/.config/kdeglobals
 	fi
 fi
-# All Wayland, and some Gnome apps, require dbus-launch with this method.
-	#    dbus-run-session does not work, so try to PID new dbus-daemon
-	#    instances and remove them after.
-echo "   exec dbus-launch $@" >> /tmp/gk/gk-env-cmd
+# Most Wayland, and some Gnome apps, require dbus-launch with this method.
+# dbus-run-session fails, so use dbus-launch and find PID of new dbus-daemon
+#    and remove process group later.
+if grep -q -E "kate|caja" <<< "$@"; then     # Kate or Caja may immediately background themselves
+	dbusl_cmd="   dbus-launch $@"
+else
+	dbusl_cmd="   dbus-launch $@ &"
+fi	
+echo "   ${dbusl_cmd}
+   ps > /dev/null   # Only to force update of process tree
+   pgrep -n dbus-daemon > \$XDG_RUNTIME_DIR/ps-dbus
+   wait \$!" >> /tmp/gk/gk-env-cmd
+# Backgrounding dbus-launch allows to get dbus-daemon PID immediately,
+#    but this forces use of wait to proceed properly after.
 chmod +x /tmp/gk/gk-env-cmd
 last_dbus=$(pgrep -n dbus-daemon)
 if ! sudo -u $INVOKING_USR pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
@@ -140,8 +146,9 @@ else  # succeeded, but check errors/warnings
 			sed -i '/^[[:space:]]*$/d' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/dictionaries|protocol specified|ToQuit|WARNING|usershare info/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
-			sed -E -n -i '/Unexpected nullptr|Expected a KPluginFactory/!p' /tmp/gk/sudo.gk.error
-			err_len=$(wc -l < /tmp/gk/sudo.gk.error)
+			sed -E -n -i '/Unexpected nullptr|Expected a KPluginFactory|changed|still attached|Shortcut/!p' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/context|GpuChannel/!p' /tmp/gk/sudo.gk.error	
+		err_len=$(wc -l < /tmp/gk/sudo.gk.error)
 			if [[ "$err_len" -gt 5 ]]; then
 				zenity --warning --title="gksudo2 Warning" --text="$(head -n 5 /tmp/gk/sudo.gk.error)
 $(tail -n 3 /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
