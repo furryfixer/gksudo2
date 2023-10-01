@@ -147,7 +147,7 @@ else  # succeeded, but check errors/warnings
 			sed -E -n -i '/dictionaries|protocol specified|ToQuit|WARNING|usershare info/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/Unexpected nullptr|Expected a KPluginFactory|changed|still attached|Shortcut/!p' /tmp/gk/sudo.gk.error
-			sed -E -n -i '/context|GpuChannel/!p' /tmp/gk/sudo.gk.error	
+			sed -E -n -i '/context|GpuChannel|GFileInfo|gfileinfo/!p' /tmp/gk/sudo.gk.error
 		err_len=$(wc -l < /tmp/gk/sudo.gk.error)
 			if [[ "$err_len" -gt 5 ]]; then
 				zenity --warning --title="gksudo2 Warning" --text="$(head -n 5 /tmp/gk/sudo.gk.error)
