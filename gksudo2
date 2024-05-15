@@ -34,7 +34,7 @@ NEVER_AUTH_LIST="kill pkill su rm chmod chown firefox"
 ##=================================================================================##
 
 err_exit1 () {
-	if ! (zenity --warning --title="gksudo2 Error" --text="$*" 2>/dev/null); then
+	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --no-wrap --no-markup 2>/dev/null); then
 		echo "$*"  # print error without zenity
 	fi
 	exit 1
