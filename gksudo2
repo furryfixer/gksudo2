@@ -148,7 +148,7 @@ if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # 
 else
 	XDG_SESSION_TYPE="x11"
 fi
-zenity --warning --text=" gksudo2 invoked allowing \""$as_user"\" access to this display server!"
+zenity --warning --title="Warning" --text=" gksudo2 invoked allowing \""$as_user"\" access to this display server!"
 sudo_znty orig_xdg_rundir="$orig_xdg_rundir" \
      DISPLAY=$DISPLAY \
      XAUTHORITY="$XAUTHORITY" \
