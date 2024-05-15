@@ -24,7 +24,7 @@
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
-# Updated 07/2023. 
+# Updated 05/2024. 
 ##=================================================================================##
 
 FORCE_PASSWD_LIST=" "
@@ -34,8 +34,8 @@ NEVER_AUTH_LIST="kill pkill su rm chmod chown firefox"
 ##=================================================================================##
 
 err_exit1 () {
-	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --no-wrap --no-markup 2>/dev/null); then
-		sed 's^\\n^^g' <<< "$*"  # print error without zenity \n format
+	if ! (zenity --warning --title="gksudo2 Error" --text="$*" 2>/dev/null); then
+		echo "$*"  # print error without zenity
 	fi
 	exit 1
 }
@@ -148,7 +148,7 @@ if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # 
 else
 	XDG_SESSION_TYPE="x11"
 fi
-zenity --warning --text=" gksudo2 invoked allowing \""$as_user"\"\n access to this display server!" --no-wrap
+zenity --warning --text=" gksudo2 invoked allowing \""$as_user"\" access to this display server!"
 sudo_znty orig_xdg_rundir="$orig_xdg_rundir" \
      DISPLAY=$DISPLAY \
      XAUTHORITY="$XAUTHORITY" \
