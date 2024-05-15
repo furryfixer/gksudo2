@@ -4,11 +4,11 @@
 #	if tried. This secondary script is called by GKSUDO2 for actions requiring
 #	elevated (sudo) privileges. Required variable assignments are passed in the 
 #	calling statement from GKSUDO2.  Created under GPLv3 license, by
-#	William Rueger (furryfixer). Updated 07/2023
+#	William Rueger (furryfixer). Updated 05/2024
 ##=================================================================================##
 err_exit1 () {
-	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --width 600 --no-markup 2>/dev/null); then
-		sed 's^\\n^^g' <<< "$*"  # print error without zenity \n format
+	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --width 600  2>/dev/null); then
+		echo "$*"  # print error without zenity
 	fi
 	rm $xauth_gksudo 2> /dev/null
 	rm /tmp/gk/gk-env-cmd 2> /dev/null
