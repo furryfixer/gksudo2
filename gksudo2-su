@@ -115,7 +115,7 @@ fi
 if grep -q -E "kate|caja" <<< "$@"; then     # Kate or Caja may immediately background themselves
 	dbusl_cmd="   dbus-launch $@"
 	dbusl_cmd="   dbus-run-session $@"
-elses
+else
 	dbusl_cmd="   dbus-launch $@ &"
 	dbusl_cmd="   dbus-run-session $@ &"
 fi	
