@@ -67,7 +67,7 @@ force_password () {  # prompt for password only if sudo does not. su is used to 
 }
 
 [[ ! -d /tmp/gk ]] && (mkdir -m0777 /tmp/gk)  # avoid sticky bit issues if su before running
-if [[ ! -e /bin/zenity ]]; then
+if [[ ! -e /bin/zenity && /usr/bin/zenity ]]; then
 	echo "STOP! Zenity is not found, and required to run gksudo2"
 	exit 1
 fi
