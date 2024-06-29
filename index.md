@@ -3,13 +3,12 @@
 ### gksudo2 [-u | --user \<user\>] \<command\>
 #### gksudo [-u | --user \<user\>] \<command\>
 #### gksu [-u | --user \<user\>] \<command\>
-#### REPLACES DEPRECATED gksudo/gksu as well as gksudo-pk. If looking for gksudo-pk, see notes at the end.
 A drop-in replacement for **gksu** and **gksudo**, with fewer options. **WORKS FOR WAYLAND** as well as for X11. Gksudo2 is a simple bash script.  **sudo** credentials are used by gksudo2 with pkexec to **launch graphical programs as root, or AS ANOTHER LOCAL USER**. It does NOT use **xhost**, or call xauth directly. This script is **NOT SECURE** by modern standards, although **it will always send a warning notification** to the display server. Gksudo2 is not recommended on multiple networked machines, with ssh, or unless behind a firewall. Convenience is attained at the expense of security. **Use at YOUR OWN RISK**. Tested and hopefully works in multiple desktop environments, including **KDE Plasma (Xorg and Wayland), XFCE, MATE, GNOME (Xorg and Wayland), LXQT**. Works in both **systemd (Arch)** and **non-systemd (Void)** systems.  Works for **gnome-terminal**, **konsole**, **nautilus**, **dolphin** and most GUI text editors in both Wayland and Xorg. Sudo administrative rules/users/groups are used for authorization.  
 
 ## Dependencies
-**bash, sudo, dbus, dbus-x11, polkit, zenity** (gtk) or **qarma** (qt)
+**bash, sudo, dbus, dbus-launch** -which is often the **dbus-x11** package in older systems, **polkit, zenity** (gtk) or **qarma** (qt)
 
-Furthermore, **dbus-daemon-units** instead of dbus-broker-units may be required.
+If using **dbus-broker-units**, dbus-launch is likely included.
 
 
 ## Options
@@ -17,7 +16,7 @@ Only the **--user | -u** options are actually used, and as with sudo, may be omi
 
 ## Applicability
 gksudo2 is designed to be fairly universal, but has not been extensively tested. Desktop environments tested so far include:
-**XFCE 4.18, KDE Plasma 5 (Wayland and Xorg), MATE 1.26, LXQT 1.3, Gnome 44 (Wayland and Xorg)**. Both **systemd** (Arch) and **non-systemd** (Void) distributions have been tested. Gksudo2 works with the following display managers: **none(startx), xdm, slim, lxdm, lightdm, gdm**. I3 and Sway have been poorly tested, but should work, as long as a polkit-agent is available.
+**XFCE 4.18, KDE Plasma 6 (Wayland and Xorg), MATE 1.26, LXQT 2.0, Gnome 45 (Wayland and Xorg)**. Both **systemd** (Arch) and **non-systemd** (Void) distributions have been tested. Gksudo2 works with the following display managers: **none(startx), xdm, slim, lxdm, lightdm, gdm**. I3 and Sway have been poorly tested, but should work, as long as a polkit-agent is available.
 
 ## Details
 The invoking user **must be LOCAL** and **MUST be a SUDOER**, either as an individual, or by group membership (often "wheel" or "sudo"). The **-u | --user** option allows gksudo2 to run a program as **ANY STANDARD LOCAL USER, as well as root**.  
@@ -57,5 +56,6 @@ For an active mate-session, Caja works fine when called by gksudo2 for non-root 
 
 Gksudo2 relies heavily on creating small temporary files in the /tmp directory.  Obviously, it will run faster and be easier on drives if /tmp is a tmpfs in RAM.
 
-### Deprecated gksudo-pk Discussion
-Gksudo2 is a rewrite of the deprecated gksudo-pk script, the initial focus of which was to eliminate use of pkexec. Increasing security vulnerabilities make pkexec hardly more secure than sudo. Unfortunately, KDE recently changed their apps to refuse to open with sudo, so in a partial reversion, gksudo2 uses pkexec as a pass-through, as KDE requires it. Gksudo-pk will no longer receive updates, so users of gksudo-pk should migrate to gksudo2. 
+Gksudo2 is a rewrite of the deprecated gksudo-pk script, the initial focus of which was to eliminate use of pkexec. Increasing security vulnerabilities make pkexec hardly more secure than sudo. Unfortunately, KDE recently changed their apps to refuse to open with sudo, so in a partial reversion, gksudo2 uses pkexec as a pass-through, as KDE requires it. 
+
+Users have wondered why gksudo2 does NOT use dbus-run-session, instead of dbus-launch. Unfortunately, dbus-run-session partially unravels what the script sets up, so that apps started with gksudo2 have a dbus user bus that is isolated from the session bus. dbus-launch avoids this.
