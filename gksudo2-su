@@ -142,7 +142,7 @@ else  # succeeded, but check errors/warnings
 	if [[ -s /tmp/gk/sudo.gk.error ]]; then
 		#  Filter some normally superfluous warnings from stderr/stdout
 		tail -n 2 /tmp/gk/sudo.gk.error > /tmp/gk/parsed-error 
-		if ! grep -E 'uninitialized|exiting|assertion|Bind on socket|isPrimaryInstance|WARNING|kdeinit5|Failed to connect|Initializing|QDir|ToQuit|net usershare|dictionaries' /tmp/gk/parsed-error; then
+		if ! grep -E 'uninitialized|exiting|assertion|Bind on socket|isPrimaryInstance|WARNING|kdeinit5|Failed to connect|Initializing|QDir|ToQuit|net usershare|dictionaries|Activat|Success' /tmp/gk/parsed-error; then
 			sed -i '/^[[:space:]]*$/d' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/dictionaries|protocol specified|ToQuit|WARNING|usershare info/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
