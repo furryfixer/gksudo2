@@ -114,8 +114,10 @@ fi
 #    and remove process group later.
 if grep -q -E "kate|caja" <<< "$@"; then     # Kate or Caja may immediately background themselves
 	dbusl_cmd="   dbus-launch $@"
+	dbusl_cmd="   dbus-run-session $@"
 else
 	dbusl_cmd="   dbus-launch $@ &"
+	dbusl_cmd="   dbus-run-session $@ &"
 fi	
 echo "   ${dbusl_cmd}
    ps > /dev/null   # Only to force update of process tree
