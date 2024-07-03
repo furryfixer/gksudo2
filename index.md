@@ -58,4 +58,4 @@ Gksudo2 relies heavily on creating small temporary files in the /tmp directory. 
 
 Gksudo2 is a rewrite of the deprecated gksudo-pk script, the initial focus of which was to eliminate use of pkexec. Increasing security vulnerabilities make pkexec hardly more secure than sudo. Unfortunately, KDE recently changed their apps to refuse to open with sudo, so in a partial reversion, gksudo2 uses pkexec as a pass-through, as KDE requires it. 
 
-Users have wondered why gksudo2 does NOT use dbus-run-session, instead of dbus-launch. Unfortunately, dbus-run-session partially unravels what the script sets up, so that apps started with gksudo2 have a dbus user bus that is isolated from the session bus. dbus-launch avoids this.
+Users have wondered why gksudo2 does NOT use dbus-run-session, instead of dbus-launch. Unfortunately, dbus-run-session partially unravels what the script sets up, so that apps started with gksudo2 have a dbus session bus that is isolated from the system bus. dbus-launch avoids this.
