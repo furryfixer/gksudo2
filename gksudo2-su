@@ -145,7 +145,7 @@ else  # succeeded, but check errors/warnings
 		if ! grep -E 'uninitialized|exiting|assertion|Bind on socket|isPrimaryInstance|WARNING|kdeinit5|Failed to connect|Initializing|QDir|ToQuit|net usershare|dictionaries|Activat|Success' /tmp/gk/parsed-error; then
 			sed -i '/^[[:space:]]*$/d' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/dictionaries|protocol specified|ToQuit|WARNING|usershare info/!p' /tmp/gk/sudo.gk.error
-			sed -E -n -i '/uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/Gtk-CRITICAL|uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/Unexpected nullptr|Expected a KPluginFactory|changed|still attached|Shortcut/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/context|GpuChannel|GFileInfo|gfileinfo/!p' /tmp/gk/sudo.gk.error
 		err_len=$(wc -l < /tmp/gk/sudo.gk.error)
