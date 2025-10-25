@@ -1,0 +1,14 @@
+10-2025
+
+Both scripts:
+
+Supress notificaion display of warnings from the Zenity process itself.
+----------------------------------------------------------------------
+gksudo2
+
+Remove ROOT_FM variable only used/imported from the optional filemanager-gksudo2 script.
+Handle user options -u(user) --user(user), when there are no spaces between -u/--user and the username. This prevents inadvertently running as the root user, instead of the intended user.
+------------------------------------------------------------------------------------
+gksudo-su
+
+Suppress a few more warnings, but allow more warnings to be printed if the pkexec call fails.  In particular this allows the user to see the admonition from Gnome/Nautilus that root access is not allowed.
