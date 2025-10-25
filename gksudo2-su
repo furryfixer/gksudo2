@@ -4,7 +4,7 @@
 #	if tried. This secondary script is called by GKSUDO2 for actions requiring
 #	elevated (sudo) privileges. Required variable assignments are passed in the 
 #	calling statement from GKSUDO2.  Created under GPLv3 license, by
-#	William Rueger (furryfixer). Updated 05/2024
+#	William Rueger (furryfixer). Updated 10/2025.
 ##=================================================================================##
 err_exit1 () {
 	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --width 600  2>/dev/null); then
@@ -125,13 +125,13 @@ echo "   ${dbusl_cmd}
 #    but this forces use of wait to proceed properly after.
 chmod +x /tmp/gk/gk-env-cmd
 last_dbus=$(pgrep -n dbus-daemon)
-if ! sudo -u $INVOKING_USR pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then
+if ! sudo -u $INVOKING_USR pkexec --user $as_user /tmp/gk/gk-env-cmd &>/tmp/gk/sudo.gk.error; then # Failed execution
 	cleanup_files_dbus 
 	if [[ -s /tmp/gk/sudo.gk.error ]]; then  # If no error reported, we will allow to fail silently
 		if grep "command as another user" /tmp/gk/sudo.gk.error; then
 			err_exit1 "$(tail -n 3 /tmp/gk/sudo.gk.error)"
 		else
-			sed -E -n -i '/WARNING|protocol specified|ToQuit/!p' /tmp/gk/sudo.gk.error
+			sed -E -n -i '/protocol specified|ToQuit/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/assertion|isPrimaryInstance|Initializing|QDir|usershare/!p' /tmp/gk/sudo.gk.error
 			err_exit1 "Error! if cryptic, possibly from unclean exit of child process
  $(cat /tmp/gk/sudo.gk.error)"
@@ -148,12 +148,13 @@ else  # succeeded, but check errors/warnings
 			sed -E -n -i '/Gtk-CRITICAL|uninitialized|assertion|isPrimaryInstance|Initializing|QDir|send signal/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/Unexpected nullptr|Expected a KPluginFactory|changed|still attached|Shortcut/!p' /tmp/gk/sudo.gk.error
 			sed -E -n -i '/context|GpuChannel|GFileInfo|gfileinfo/!p' /tmp/gk/sudo.gk.error
-		err_len=$(wc -l < /tmp/gk/sudo.gk.error)
+			sed -E -n -i '/QThread|"wayland"|refused|viewproperties/!p' /tmp/gk/sudo.gk.error
+			err_len=$(wc -l < /tmp/gk/sudo.gk.error)
 			if [[ "$err_len" -gt 5 ]]; then
 				zenity --warning --title="gksudo2 Warning" --text="$(head -n 5 /tmp/gk/sudo.gk.error)
-$(tail -n 3 /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
+$(tail -n 3 /tmp/gk/sudo.gk.error)" --no-wrap --no-markup 2>/dev/null
 			elif [[ "$err_len" -ne 0 ]]; then
-				zenity --warning --title="gksudo2 Warning" --text="$(cat /tmp/gk/sudo.gk.error)" --no-wrap --no-markup
+				zenity --warning --title="gksudo2 Warning" --text="$(cat /tmp/gk/sudo.gk.error)" --no-wrap --no-markup 2>/dev/null
 			fi
 		fi
 	fi
@@ -173,3 +174,4 @@ if [[ $XDG_SESSION_TYPE = "wayland" ]] && [[ $gk_instances -lt 2 ]]; then
 	chmod 0755 $wayland_socket
 fi
 exit 0
+
