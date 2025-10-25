@@ -1,6 +1,6 @@
 #! /bin/bash
 ####################################################################################
-# GKSUDO2 (drop-in replacement for gksudo, gksu) without pkexec,
+# GKSUDO2 (drop-in replacement for gksudo, gksu) using sudo and pkexec,
 #		for X11 or Wayland. GPLv3 license, by William Rueger (furryfixer) 
 # Requires: Zenity, sudo, polkit and elogind or systemd dependencies.
 # Also requires a helper script, GKSUDO2-SU, for actions with elevated privileges.
@@ -24,7 +24,7 @@
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
-# Updated 05/2024. 
+# Updated 10/2025. 
 ##=================================================================================##
 
 FORCE_PASSWD_LIST=" "
@@ -40,14 +40,19 @@ err_exit1 () {
 	exit 1
 }
 sudo_znty () {
-	if ! sudo -A "$@" > /dev/null 2>/tmp/gk/sudo-error; then
-		if grep "3 incorrect password attempts" /tmp/gk/sudo-error; then
+	if ! sudo -A "$@" 2>/tmp/gk/sudo-error; then
+		if grep -q "3 incorrect password attempts" /tmp/gk/sudo-error; then
 			err_exit1 "STOP!  No valid password for ${USER} 
  after multiple attempts"
-		elif grep "not in the sudoers file" /tmp/gk/sudo-error; then
+		elif grep -q "not in the sudoers file" /tmp/gk/sudo-error; then
 			err_exit1 "STOP! User \"${USER}\" has no sudo privileges, 
  which gksudo2 requires."
+		elif grep -q "is not allowed" /tmp/gk/sudo-error; then
+			err_exit1 "STOP! User \"${USER}\" does not have sudo
+ privileges to run gksudo2."
 		fi
+		text_msg=$(cat /tmp/gk/sudo-error)
+		err_exit1 "$text_msg"
 	fi
 }
 is_cmd_in_list () {
@@ -59,12 +64,7 @@ is_cmd_in_list () {
 	done
 	return 1
 }
-
-force_password () {  # prompt for password only if sudo does not. su is used to validate 
-	if sudo -nv  >/dev/null 2>&1; then
-		su -c : $USER <<< "$($SUDO_ASKPASS)" >/dev/null 2>&1 || err_exit1 "Password Not Recognized"
-	fi
-}
+#====================
 
 [[ ! -d /tmp/gk ]] && (mkdir -m0777 /tmp/gk)  # avoid sticky bit issues if su before running
 if [[ ! -e /bin/zenity && /usr/bin/zenity ]]; then
@@ -80,21 +80,26 @@ usr_home=$(eval echo "~${USER}")
 current_dir="`pwd`" 
 [[ -f /tmp/gk/zenity-sudo-passwd ]] && rm /tmp/gk/zenity-sudo-passwd
 echo "#!/bin/bash
-zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd
+zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd 2>/dev/null
 chmod 0777 /tmp/gk/zenity-sudo-passwd
 export SUDO_ASKPASS="/tmp/gk/zenity-sudo-passwd"
 as_user="root"
 while :   # Deal with legacy gksudo options, all but --user|-u are stripped/ignored
 do
 	case "$1" in
-	-u | --user)    # Pass the following username to sudo
-		as_user=$2
-		shift 2
+	-u* | --user*)    # Pass the following username to sudo
+		if [[ "$1" != "-u" ]] && [[ "$1" != "--user" ]]; then #  Parse username from -u|--user if no space between
+        		as_user=$(echo $1 | sed 's/--user//')
+        		as_user=$(echo $as_user | sed 's/-u//')  
+        		shift
+		else
+        		as_user=$2
+        		shift 2
+		fi
 		;;
 	-m | --message | -D | --description)   # Only other gksudo options which used 2nd following field?
 		shift 2
 		;;
-	
 	-* | --*)    # All other options only 1 shift needed to erase
 		shift
 		;; 
@@ -116,8 +121,10 @@ cmd_minus_path=${1##*/}       # Strips  /usr/bin/.../  prefixes
 hash "$1" 2>/dev/null || err_exit1 "STOP! Command ${1} not found"
 is_cmd_in_list ${NEVER_AUTH_LIST} && err_exit1 "STOP! gksudo2 execution of ${1} is 
  prevented by local policy!"
-if (is_cmd_in_list ${FORCE_PASSWD_LIST}) || [[ $ROOT_FM = true ]]; then  # $ROOT_FM set by filemanager-gksudo2
-	force_password
+if (is_cmd_in_list ${FORCE_PASSWD_LIST}); then
+	if sudo -nv  >/dev/null 2>&1; then   # prompt for password only if sudo does not. su is used to validate 
+		su -c : $USER <<< "$($SUDO_ASKPASS)" >/dev/null 2>&1 || err_exit1 "Password Not Recognized"
+	fi
 fi
 if [[ "$cmd_minus_path" = "mate-terminal" ]]; then
 	set -- "$@" "--disable-factory" # Force mate-terminal to start new PID
@@ -148,7 +155,7 @@ if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # 
 else
 	XDG_SESSION_TYPE="x11"
 fi
-zenity --warning --title="Warning" --text=" gksudo2 invoked allowing \""$as_user"\" access to this display server!"
+zenity --warning --title="Warning" --text="gksudo2 invoked allowing \""$as_user"\" access to this display server!" 2>/dev/null
 sudo_znty orig_xdg_rundir="$orig_xdg_rundir" \
      DISPLAY=$DISPLAY \
      XAUTHORITY="$XAUTHORITY" \
