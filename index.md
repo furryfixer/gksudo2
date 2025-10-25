@@ -16,7 +16,7 @@ Only the **--user | -u** options are actually used, and as with sudo, may be omi
 
 ## Applicability
 gksudo2 is designed to be fairly universal, but has not been extensively tested. Desktop environments tested so far include:
-**XFCE 4.18, KDE Plasma 6 (Wayland and Xorg), MATE 1.26, LXQT 2.0, Gnome 45 (Wayland and Xorg)**. Both **systemd** (Arch) and **non-systemd** (Void) distributions have been tested. Gksudo2 works with the following display managers: **none(startx), xdm, slim, lxdm, lightdm, gdm**. I3 and Sway have been poorly tested, but should work, as long as a polkit-agent is available.
+**XFCE 4.2, KDE Plasma 6 (Wayland and Xorg), MATE 1.28, LXQT 2.2, Gnome 49 (Wayland and (Xorg for versions<49))**. Both **systemd** (Arch) and **non-systemd** (Void) distributions have been tested. Gksudo2 works with the following display managers: **none(startx), xdm, slim, lxdm, lightdm, gdm**. I3 and Sway have been poorly tested, but should work, as long as a polkit-agent is available.
 
 ## Details
 The invoking user **must be LOCAL** and **MUST be a SUDOER**, either as an individual, or by group membership (often "wheel" or "sudo"). The **-u | --user** option allows gksudo2 to run a program as **ANY STANDARD LOCAL USER, as well as root**.  
