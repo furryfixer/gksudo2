@@ -24,7 +24,7 @@
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
-# Updated 10/2025. 
+# Updated 11/2025. 
 ##=================================================================================##
 
 FORCE_PASSWD_LIST=" "
@@ -67,7 +67,7 @@ is_cmd_in_list () {
 #====================
 
 [[ ! -d /tmp/gk ]] && (mkdir -m0777 /tmp/gk)  # avoid sticky bit issues if su before running
-if [[ ! -e /bin/zenity && /usr/bin/zenity ]]; then
+if [[ ! -e /usr/bin/zenity ]]; then
 	echo "STOP! Zenity is not found, and required to run gksudo2"
 	exit 1
 fi
