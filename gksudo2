@@ -78,7 +78,7 @@ fi
 USER=$(whoami)   # in case odd "su" invocation to root. Force to be the same.
 usr_home=$(eval echo "~${USER}")
 current_dir="`pwd`" 
-[[ -f /tmp/gk/zenity-sudo-passwd ]] && rm /tmp/gk/zenity-sudo-passwd
+rm -f /tmp/gk/zenity-sudo-passwd
 echo "#!/bin/bash
 zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd 2>/dev/null
 chmod 0777 /tmp/gk/zenity-sudo-passwd
