@@ -1,7 +1,7 @@
 #! /bin/bash
 ####################################################################################
 # GKSUDO2 (drop-in replacement for gksudo, gksu) using sudo and pkexec,
-#		for X11 or Wayland. GPLv3 license, by William Rueger (furryfixer) 
+#		for Wayland or X11. GPLv3 license, by William Rueger (furryfixer) 
 # Requires: Zenity, sudo, polkit and elogind or systemd dependencies.
 # Also requires a helper script, GKSUDO2-SU, for actions with elevated privileges.
 #
@@ -24,7 +24,7 @@
 # for a password every time that command is encountered (FORCE_PASSWD_LIST).
 # Full pathnames need not be included, but whitespace is required between entries.
 # Polkit Auth_admin rules are bypassed in favor of sudo authorization.
-# Updated 11/2025. 
+# Updated 07/2026. 
 ##=================================================================================##
 
 FORCE_PASSWD_LIST=" "
@@ -33,14 +33,17 @@ NEVER_AUTH_LIST="kill pkill su rm chmod chown firefox"
 
 ##=================================================================================##
 
+# dbus-run-session/dbus-launch now used with zenity to avoid annoying missing 
+# dialog text on Wayland, often with later nvidia drivers. Qarma did not require.
+
 err_exit1 () {
-	if ! (zenity --warning --title="gksudo2 Error" --text="$*" --no-wrap --no-markup 2>/dev/null); then
+	if ! (dbus-run-session  zenity --warning --title="gksudo2 Error" --text="$*" --no-wrap --no-markup &>/dev/null); then
 		echo "$*"  # print error without zenity
 	fi
 	exit 1
 }
 sudo_znty () {
-	if ! sudo -A "$@" 2>/tmp/gk/sudo-error; then
+	if ! sudo -A "$@" &>/tmp/gk/sudo-error; then
 		if grep -q "3 incorrect password attempts" /tmp/gk/sudo-error; then
 			err_exit1 "STOP!  No valid password for ${USER} 
  after multiple attempts"
@@ -51,8 +54,9 @@ sudo_znty () {
 			err_exit1 "STOP! User \"${USER}\" does not have sudo
  privileges to run gksudo2."
 		fi
-		text_msg=$(cat /tmp/gk/sudo-error)
-		err_exit1 "$text_msg"
+		# If error printed by gksudo2-su, do not print error here
+		[[ -s /tmp/gk/sudo-error &&  ! -s /tmp/gk/err-file-out ]] && err_exit1 "$(cat /tmp/gk/sudo-error)"
+		exit 1
 	fi
 }
 is_cmd_in_list () {
@@ -67,20 +71,28 @@ is_cmd_in_list () {
 #====================
 
 [[ ! -d /tmp/gk ]] && (mkdir -m0777 /tmp/gk)  # avoid sticky bit issues if su before running
-if [[ ! -e /usr/bin/zenity ]]; then
+if  ! command -v zenity &>/dev/null; then
 	echo "STOP! Zenity is not found, and required to run gksudo2"
 	exit 1
 fi
-if [[ ! -f /tmp/gk/sudo-error ]]; then
-	touch /tmp/gk/sudo-error 
-	chmod 0666 /tmp/gk/sudo-error
-fi
+rm -f /tmp/gk/sudo-error
+touch /tmp/gk/sudo-er 
+chmod 0666 /tmp/gk/sudo-error
+
 USER=$(whoami)   # in case odd "su" invocation to root. Force to be the same.
 usr_home=$(eval echo "~${USER}")
 current_dir="`pwd`" 
 rm -f /tmp/gk/zenity-sudo-passwd
+# SUDO_ASKPASS fails with dbus-run-session. dbus-launch used for reasons above, but steps
+#   are needed to reduce orphaned dbus-daemons. Backgrounding dbus-launch allows to get
+#   dbus-daemon PID immediately, but this forces use of "wait" to proceed properly after.
 echo "#!/bin/bash
-zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"" > /tmp/gk/zenity-sudo-passwd 2>/dev/null
+last_dbus=\$(pgrep -n dbus-daemon)
+dbus-launch zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"
+ps &>/dev/null  # Only to force update of process tree
+new_dbus=\$(pgrep -n dbus-daemon)
+wait \$! &>/dev/null
+[[ \$new_dbus -ne \$last_dbus ]] && kill -- -\$new_dbus &>/dev/null" > /tmp/gk/zenity-sudo-passwd
 chmod 0777 /tmp/gk/zenity-sudo-passwd
 export SUDO_ASKPASS="/tmp/gk/zenity-sudo-passwd"
 as_user="root"
@@ -108,7 +120,6 @@ do
 		;;
 	esac
 done
-
 [[ $# -lt 1 ]]  &&  err_exit1 "STOP! Improper syntax or missing arguments"
 if ! (id "$as_user" >/dev/null 2>&1); then
 	err_exit1 "STOP! \" "$as_user"\" is not a known username 
@@ -151,11 +162,11 @@ if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # 
 		WAYLAND_DISPLAY="$wayland_socket" # Temporary, allows Zenity early access to display if nested gksudo2 used
 	fi
 	## Spacefm bug requires next line if Wayland
-	[[ $cmd_minus_path = "spacefm" ]] && WAYLAND_DISPLAY="spacefm" 
+	#[[ $cmd_minus_path = "spacefm" ]] && WAYLAND_DISPLAY="spacefm" 
 else
 	XDG_SESSION_TYPE="x11"
 fi
-zenity --warning --title="Warning" --text="gksudo2 invoked allowing \""$as_user"\" access to this display server!" 2>/dev/null
+dbus-run-session  zenity --warning --title="Warning" --text="gksudo2 invoked allowing \""$as_user"\" access to this display server!" &>/dev/null
 sudo_znty orig_xdg_rundir="$orig_xdg_rundir" \
      DISPLAY=$DISPLAY \
      XAUTHORITY="$XAUTHORITY" \
