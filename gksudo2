@@ -76,7 +76,7 @@ if  ! command -v zenity &>/dev/null; then
 	exit 1
 fi
 rm -f /tmp/gk/sudo-error
-touch /tmp/gk/sudo-er 
+touch /tmp/gk/sudo-error
 chmod 0666 /tmp/gk/sudo-error
 
 USER=$(whoami)   # in case odd "su" invocation to root. Force to be the same.
