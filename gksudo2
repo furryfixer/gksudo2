@@ -35,26 +35,32 @@ NEVER_AUTH_LIST="kill pkill su rm chmod chown firefox"
 
 # dbus-run-session/dbus-launch now used with zenity to avoid annoying missing 
 # dialog text on Wayland, often with later nvidia drivers. Qarma did not require.
-
 err_exit1 () {
 	if ! (dbus-run-session  zenity --warning --title="gksudo2 Error" --text="$*" --no-wrap --no-markup &>/dev/null); then
 		echo "$*"  # print error without zenity
 	fi
 	exit 1
 }
+check_depends () {
+        if ! command -v $1 &>/dev/null; then
+                [[ -n $2 ]] &&  depnd=$2 || depnd=$1
+                echo "\"${depnd}\" is missing"
+                err_exit1 "STOP! \"${depnd}\" is not found, and required by gksudo2"
+        fi
+}
 sudo_znty () {
-	if ! sudo -A "$@" &>/tmp/gk/sudo-error; then
-		if grep -q "3 incorrect password attempts" /tmp/gk/sudo-error; then
+	if ! sudo -A "$@" > /dev/null 2>/tmp/gk/sudo-error; then
+		if grep "3 incorrect password attempts" /tmp/gk/sudo-error; then
 			err_exit1 "STOP!  No valid password for ${USER} 
  after multiple attempts"
-		elif grep -q "not in the sudoers file" /tmp/gk/sudo-error; then
+		elif grep "not in the sudoers file" /tmp/gk/sudo-error; then
 			err_exit1 "STOP! User \"${USER}\" has no sudo privileges, 
  which gksudo2 requires."
-		elif grep -q "is not allowed" /tmp/gk/sudo-error; then
+		elif grep "is not allowed" /tmp/gk/sudo-error; then
 			err_exit1 "STOP! User \"${USER}\" does not have sudo
  privileges to run gksudo2."
 		fi
-		# If error printed by gksudo2-su, do not print error here
+		# If error file printed by gksudo2-su, do not print error here
 		[[ -s /tmp/gk/sudo-error &&  ! -s /tmp/gk/err-file-out ]] && err_exit1 "$(cat /tmp/gk/sudo-error)"
 		exit 1
 	fi
@@ -70,11 +76,12 @@ is_cmd_in_list () {
 }
 #====================
 
+[[ -z $DBUS_SESSION_BUS_ADDRESS ]] && check_depends "dbus user session"
+check_depends zenity
+check_depends sudo
+check_depends pkcheck "Polkit"
+check_depends "dbus-launch"
 [[ ! -d /tmp/gk ]] && (mkdir -m0777 /tmp/gk)  # avoid sticky bit issues if su before running
-if  ! command -v zenity &>/dev/null; then
-	echo "STOP! Zenity is not found, and required to run gksudo2"
-	exit 1
-fi
 rm -f /tmp/gk/sudo-error
 touch /tmp/gk/sudo-error
 chmod 0666 /tmp/gk/sudo-error
@@ -87,12 +94,12 @@ rm -f /tmp/gk/zenity-sudo-passwd
 #   are needed to reduce orphaned dbus-daemons. Backgrounding dbus-launch allows to get
 #   dbus-daemon PID immediately, but this forces use of "wait" to proceed properly after.
 echo "#!/bin/bash
-last_dbus=\$(pgrep -n dbus-daemon)
-dbus-launch zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \"
+Last_Dbus=\$(pgrep -n dbus-daemon)
+dbus-launch zenity --entry --title=\"gksudo2\" --hide-text --text \"Enter sudo Password for \\\"${USER}\\\"          \" &
 ps &>/dev/null  # Only to force update of process tree
-new_dbus=\$(pgrep -n dbus-daemon)
+New_Dbus=\$(pgrep -n dbus-daemon)
 wait \$! &>/dev/null
-[[ \$new_dbus -ne \$last_dbus ]] && kill -- -\$new_dbus &>/dev/null" > /tmp/gk/zenity-sudo-passwd
+[[ \$New_Dbus -ne \$Last_Dbus ]] && kill -- -\$New_Dbus &>/dev/null" > /tmp/gk/zenity-sudo-passwd
 chmod 0777 /tmp/gk/zenity-sudo-passwd
 export SUDO_ASKPASS="/tmp/gk/zenity-sudo-passwd"
 as_user="root"
@@ -133,8 +140,8 @@ hash "$1" 2>/dev/null || err_exit1 "STOP! Command ${1} not found"
 is_cmd_in_list ${NEVER_AUTH_LIST} && err_exit1 "STOP! gksudo2 execution of ${1} is 
  prevented by local policy!"
 if (is_cmd_in_list ${FORCE_PASSWD_LIST}); then
-	if sudo -nv  >/dev/null 2>&1; then   # prompt for password only if sudo does not. su is used to validate 
-		su -c : $USER <<< "$($SUDO_ASKPASS)" >/dev/null 2>&1 || err_exit1 "Password Not Recognized"
+	if sudo -nv  &>/dev/null; then   # prompt for password only if sudo does not. su is used to validate 
+		su -c : $USER <<< "$($SUDO_ASKPASS)" &>/dev/null || err_exit1 "Password Not Recognized"
 	fi
 fi
 if [[ "$cmd_minus_path" = "mate-terminal" ]]; then
@@ -162,7 +169,7 @@ if [[ $XDG_SESSION_TYPE = "wayland" ]] || [ ! -z "$WAYLAND_DISPLAY" ]; then   # 
 		WAYLAND_DISPLAY="$wayland_socket" # Temporary, allows Zenity early access to display if nested gksudo2 used
 	fi
 	## Spacefm bug requires next line if Wayland
-	#[[ $cmd_minus_path = "spacefm" ]] && WAYLAND_DISPLAY="spacefm" 
+	[[ $cmd_minus_path = "spacefm" ]] && WAYLAND_DISPLAY="spacefm" 
 else
 	XDG_SESSION_TYPE="x11"
 fi
