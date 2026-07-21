@@ -27,8 +27,10 @@ err_exit_file () {  # $1 is title, $2 is header, $3 is filename
 	exit 1
 }
 cleanup_files_dbus () {
-	[[ -s "${as_usr_rundir}/ps-dbus" ]] && read new_dbus < $as_usr_rundir/ps-dbus
-	[[ $new_dbus -ne $last_dbus ]] && kill -- -$new_dbus &>/dev/null
+	# Reap dbus-daemons if possible
+	if read new_dbus 2>/dev/null < $as_usr_rundir/ps-dbus ; then
+		[[ $new_dbus -ne $last_dbus ]] && kill -- -$new_dbus &>/dev/null
+	fi
 	[[ -f /tmp/gk/kdeglobals ]] && mv /tmp/gk/kdeglobals /root/.config/kdeglobals
 }
 finish_cleanup () {
